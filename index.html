@@ -146,6 +146,13 @@ const firebaseConfig = {
   appId: "1:1027821457649:web:4a649763d0505db83c9950"
 };
 
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        const appId = app.options.projectId;
+
         // --- DOM ELEMENT REFERENCES ---
         const mainView = document.getElementById('main-view');
         const adminDashboard = document.getElementById('admin-dashboard');
