@@ -137,21 +137,12 @@
         import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         // --- FIREBASE CONFIG ---
-const firebaseConfig = {
-  apiKey: "AIzaSyAw0POKFHZkLMJdOvTnqlc4B2jMHaUdC44",
-  authDomain: "portal-certificados-antiplaga.firebaseapp.com",
-  projectId: "portal-certificados-antiplaga",
-  storageBucket: "portal-certificados-antiplaga.firebasestorage.app",
-  messagingSenderId: "1027821457649",
-  appId: "1:1027821457649:web:4a649763d0505db83c9950"
-};
-
-        // Initialize Firebase services
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         const storage = getStorage(app);
-        const appId = app.options.projectId;
 
         // --- DOM ELEMENT REFERENCES ---
         const mainView = document.getElementById('main-view');
@@ -224,14 +215,16 @@ const firebaseConfig = {
             try {
                 await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                if (error.code === 'auth/user-not-found') {
-                    // Check if the email is in the allowed list before offering to create an account
+                // **CORRECTION:** Handle 'auth/invalid-credential' as a potential "user not found" case.
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+                    // First, check if the email is even allowed to register.
                     if (!allowedAdminEmails.includes(email)) {
                         showModal("Este correo electrónico no está autorizado para registrarse como administrador.");
                         return;
                     }
-
-                    showModal("Usuario no encontrado. ¿Desea crear una nueva cuenta de administrador con estas credenciales?", true, async () => {
+                    
+                    // If allowed, offer to create a new account.
+                    showModal("Usuario no encontrado o credencial inválida. ¿Desea crear una nueva cuenta de administrador con estas credenciales?", true, async () => {
                         try {
                             await createUserWithEmailAndPassword(auth, email, password);
                             showModal("Cuenta de administrador creada con éxito.");
@@ -240,6 +233,7 @@ const firebaseConfig = {
                         }
                     });
                 } else {
+                    // Handle other unexpected errors
                     showModal(`Error de ingreso: ${error.message}`);
                 }
             }
@@ -491,3 +485,4 @@ const firebaseConfig = {
     </script>
 </body>
 </html>
+
