@@ -170,7 +170,7 @@ function renderFiles(client) {
               `<p class="font-medium text-white">${file.fileName}</p>`+
               `<p class="text-sm text-gray-400">Fecha: ${file.uploadDate}</p>`+
               `</div>`+
-              `<a href="${file.fileURL}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Descargar</a>`+
+              `<a href="${file.fileURL}" download class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Descargar</a>`+
               `</li>`;
     });
     html += '</ul>';
