@@ -336,6 +336,16 @@
                 const code = document.getElementById('pwd-access-code').value.trim();
                 if (!name || !code) return showModal("Nombre y código son requeridos.");
                 await setDoc(doc(db, `file_portals/${appId}/client_passwords`, name), { accessCode: code });
+
+                // Create or update a stub client document so the access code works
+                const clientDocRef = doc(db, `file_portals/${appId}/clients`, code);
+                const clientDoc = await getDoc(clientDocRef);
+                if(!clientDoc.exists()) {
+                    await setDoc(clientDocRef, { clientName: name, createdAt: serverTimestamp(), files: [] });
+                } else {
+                    await updateDoc(clientDocRef, { clientName: name });
+                }
+
                 document.getElementById('pwd-client-name').value = '';
                 document.getElementById('pwd-access-code').value = '';
                 showModal("Cliente guardado con éxito.");
