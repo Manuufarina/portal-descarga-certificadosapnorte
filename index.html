@@ -101,6 +101,11 @@
                                 <input type="text" id="pwd-access-code" placeholder="Código de Acceso (Contraseña)" class="w-full bg-gray-700 p-2 rounded">
                                 <button id="btn-save-password" class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded">Guardar Cliente</button>
                             </div>
+                            <div class="space-y-3 bg-gray-900 p-4 rounded mt-4">
+                                <h4 class="font-medium">Importar desde CSV</h4>
+                                <input type="file" id="csv-file" accept=".csv" class="w-full bg-gray-700 p-2 rounded">
+                                <button id="btn-import-csv" class="w-full bg-green-600 hover:bg-green-700 p-2 rounded">Cargar CSV</button>
+                            </div>
                         </div>
                         <div>
                             <h4 class="font-medium mb-2">Clientes Existentes</h4>
@@ -131,9 +136,15 @@
 
 <script>
 let clientsData = {};
-fetch('data/clients.json')
-  .then(r => r.json())
-  .then(d => { clientsData = d; });
+function loadClients() {
+  fetch('data/clients.json')
+    .then(r => r.json())
+    .then(d => {
+      const local = localStorage.getItem('clientsData');
+      clientsData = Object.assign({}, d, local ? JSON.parse(local) : {});
+      renderPasswordList();
+    });
+}
 const adminCredentials = {
   'admin@local': 'admin123',
   'manuel@antiplaganorte.com.ar': 'Manu5500'
@@ -149,6 +160,27 @@ const adminTabsSelect = document.getElementById('admin-tabs-select');
 const adminUploadView = document.getElementById('admin-upload-view');
 const adminPasswordsView = document.getElementById('admin-passwords-view');
 const adminClientsView = document.getElementById('admin-clients-view');
+const pwdNameInput = document.getElementById('pwd-client-name');
+const pwdCodeInput = document.getElementById('pwd-access-code');
+const btnSavePassword = document.getElementById('btn-save-password');
+const passwordList = document.getElementById('password-list');
+const csvFileInput = document.getElementById('csv-file');
+const btnImportCsv = document.getElementById('btn-import-csv');
+
+function saveClients() {
+  localStorage.setItem('clientsData', JSON.stringify(clientsData));
+}
+
+function renderPasswordList() {
+  if (!passwordList) return;
+  passwordList.innerHTML = '';
+  Object.entries(clientsData).forEach(([code, info]) => {
+    const div = document.createElement('div');
+    div.className = 'flex justify-between items-center p-2 bg-gray-700 rounded mb-1';
+    div.innerHTML = `<span>${info.clientName}</span><span class="text-sm text-gray-400">${code}</span>`;
+    passwordList.appendChild(div);
+  });
+}
 
 function showAdminTab(tab) {
   adminTabButtons.forEach(btn => {
@@ -196,6 +228,45 @@ adminTabsSelect.addEventListener('change', e => {
 
 // default first admin tab visible on login
 showAdminTab('upload');
+loadClients();
+
+btnSavePassword.addEventListener('click', () => {
+  const name = pwdNameInput.value.trim();
+  const code = pwdCodeInput.value.trim();
+  if (!name || !code) { alert('Ingrese nombre y código'); return; }
+  if (!clientsData[code]) {
+    clientsData[code] = { clientName: name, files: [] };
+  } else {
+    clientsData[code].clientName = name;
+  }
+  saveClients();
+  renderPasswordList();
+  pwdNameInput.value = '';
+  pwdCodeInput.value = '';
+});
+
+btnImportCsv.addEventListener('click', () => {
+  const file = csvFileInput.files[0];
+  if (!file) { alert('Seleccione un archivo CSV'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split(/\r?\n/);
+    lines.forEach(line => {
+      if (!line.trim()) return;
+      const [name, code] = line.split(',');
+      if (!name || !code) return;
+      const c = code.trim();
+      const n = name.trim();
+      if (!clientsData[c]) clientsData[c] = { clientName: n, files: [] };
+      else clientsData[c].clientName = n;
+    });
+    saveClients();
+    renderPasswordList();
+    csvFileInput.value = '';
+    alert('Importación completada');
+  };
+  reader.readAsText(file);
+});
 
 document.getElementById('btn-admin-logout').addEventListener('click', () => {
   mainView.classList.remove('hidden');
