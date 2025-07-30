@@ -2,6 +2,23 @@
 
 Utilidad simple para gestionar y descargar certificados en formato PDF.
 
+## Configuración de Firebase
+
+El portal utiliza Firebase Firestore como base de datos. Es necesario
+proporcionar la configuración de tu proyecto en el bloque `firebaseConfig`
+dentro de `index.html`:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_AUTH_DOMAIN",
+  projectId: "TU_PROJECT_ID"
+};
+```
+
+Asegúrate de reemplazar los valores de ejemplo por los de tu proyecto antes de
+subir la aplicación a producción.
+
 ## Actualizar listado de clientes
 
 Se proveen dos scripts Node en la carpeta `scripts`:
