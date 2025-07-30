@@ -169,6 +169,9 @@ const passwordList = document.getElementById('password-list');
 const csvFileInput = document.getElementById('csv-file');
 const btnImportCsv = document.getElementById('btn-import-csv');
 const clientManagementList = document.getElementById('client-management-list');
+const bulkFileInput = document.getElementById('bulk-file-upload');
+const btnBulkUpload = document.getElementById('btn-bulk-upload');
+const bulkUploadStatus = document.getElementById('bulk-upload-status');
 
 function saveClients() {
   localStorage.setItem('clientsData', JSON.stringify(clientsData));
@@ -303,6 +306,49 @@ btnImportCsv.addEventListener('click', () => {
     alert('Importación completada');
   };
   reader.readAsText(file);
+});
+
+btnBulkUpload.addEventListener('click', () => {
+  const files = bulkFileInput.files;
+  if (files.length === 0) { alert('Seleccione al menos un archivo.'); return; }
+  bulkUploadStatus.innerHTML = '';
+  Array.from(files).forEach(file => {
+    const log = (msg, color='text-gray-300') => {
+      const p = document.createElement('p');
+      p.className = `text-sm ${color}`;
+      p.textContent = msg;
+      bulkUploadStatus.appendChild(p);
+      bulkUploadStatus.scrollTop = bulkUploadStatus.scrollHeight;
+    };
+    const parts = file.name.split(' - ');
+    if (parts.length < 2) {
+      log(`Error: El archivo '${file.name}' no tiene el formato 'Cliente - Detalle.pdf'`, 'text-red-400');
+      return;
+    }
+    const clientName = parts[0].trim().toLowerCase();
+    const found = Object.entries(clientsData).find(([_, info]) => info.clientName.toLowerCase() === clientName);
+    if (!found) {
+      log(`Error: No se encontró cliente '${parts[0].trim()}'.`, 'text-red-400');
+      return;
+    }
+    const [code, client] = found;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const fileData = {
+        fileName: file.name,
+        fileURL: e.target.result,
+        uploadDate: new Date().toISOString().slice(0, 10)
+      };
+      if (!client.files) client.files = [];
+      client.files.push(fileData);
+      saveClients();
+      renderClientManagementList();
+      log(`Éxito: '${file.name}' cargado para '${client.clientName}'.`, 'text-green-400');
+    };
+    reader.onerror = () => log(`Error al leer ${file.name}`, 'text-red-400');
+    reader.readAsDataURL(file);
+  });
+  bulkFileInput.value = '';
 });
 
 document.getElementById('btn-admin-logout').addEventListener('click', () => {
