@@ -144,6 +144,7 @@ function loadClients() {
       const local = localStorage.getItem('clientsData');
       clientsData = Object.assign({}, d, local ? JSON.parse(local) : {});
       renderPasswordList();
+      renderClientManagementList();
     });
 }
 const adminCredentials = {
@@ -167,6 +168,7 @@ const btnSavePassword = document.getElementById('btn-save-password');
 const passwordList = document.getElementById('password-list');
 const csvFileInput = document.getElementById('csv-file');
 const btnImportCsv = document.getElementById('btn-import-csv');
+const clientManagementList = document.getElementById('client-management-list');
 
 function saveClients() {
   localStorage.setItem('clientsData', JSON.stringify(clientsData));
@@ -183,6 +185,37 @@ function renderPasswordList() {
   });
 }
 
+function renderClientManagementList() {
+  if (!clientManagementList) return;
+  clientManagementList.innerHTML = '';
+  Object.entries(clientsData).forEach(([code, info]) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'bg-gray-900 p-4 rounded';
+    const header = document.createElement('h4');
+    header.className = 'font-semibold mb-2';
+    header.textContent = `${info.clientName} (${code})`;
+    wrapper.appendChild(header);
+    if (!info.files || info.files.length === 0) {
+      const none = document.createElement('p');
+      none.className = 'text-gray-400 text-sm';
+      none.textContent = 'Sin archivos';
+      wrapper.appendChild(none);
+    } else {
+      const list = document.createElement('ul');
+      list.className = 'space-y-1 text-sm';
+      info.files.forEach(file => {
+        const li = document.createElement('li');
+        li.className = 'flex justify-between items-center bg-gray-800 p-2 rounded';
+        li.innerHTML = `<span>${file.fileName}</span>`+
+                      `<a href="${file.fileURL}" target="_blank" class="text-blue-400 hover:underline">Descargar</a>`;
+        list.appendChild(li);
+      });
+      wrapper.appendChild(list);
+    }
+    clientManagementList.appendChild(wrapper);
+  });
+}
+
 function showAdminTab(tab) {
   adminTabButtons.forEach(btn => {
     btn.classList.toggle('admin-tab-active', btn.dataset.tab === tab);
@@ -191,6 +224,7 @@ function showAdminTab(tab) {
   adminUploadView.classList.toggle('hidden', tab !== 'upload');
   adminPasswordsView.classList.toggle('hidden', tab !== 'passwords');
   adminClientsView.classList.toggle('hidden', tab !== 'clients');
+  if (tab === 'clients') renderClientManagementList();
 }
 
 document.getElementById('admin-login-form').addEventListener('submit', e => {
@@ -242,6 +276,7 @@ btnSavePassword.addEventListener('click', () => {
   }
   saveClients();
   renderPasswordList();
+  renderClientManagementList();
   pwdNameInput.value = '';
   pwdCodeInput.value = '';
 });
@@ -263,6 +298,7 @@ btnImportCsv.addEventListener('click', () => {
     });
     saveClients();
     renderPasswordList();
+    renderClientManagementList();
     csvFileInput.value = '';
     alert('Importación completada');
   };
