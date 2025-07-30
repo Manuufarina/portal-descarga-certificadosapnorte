@@ -6,6 +6,21 @@
     <title>Portal de Documentos v2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase libraries -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script>
+      // TODO: Reemplazar con la configuración real de tu proyecto
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID"
+      };
+      firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+    </script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .tab-active { border-bottom-color: #3b82f6; color: #3b82f6; font-weight: 600; }
@@ -134,10 +149,6 @@ let clientsData = {};
 fetch('data/clients.json')
   .then(r => r.json())
   .then(d => { clientsData = d; });
-const adminCredentials = {
-  'admin@local': 'admin123',
-  'manuel@antiplaganorte.com.ar': 'Manu5500'
-};
 const mainView = document.getElementById('main-view');
 const adminDashboard = document.getElementById('admin-dashboard');
 
@@ -145,15 +156,25 @@ document.getElementById('admin-login-form').addEventListener('submit', e => {
   e.preventDefault();
   const email = document.getElementById('admin-email').value.trim().toLowerCase();
   const password = document.getElementById('admin-password').value;
-  if (adminCredentials[email] === password) {
-    mainView.classList.add('hidden');
-    adminDashboard.classList.remove('hidden');
-  } else {
-    alert('Credenciales incorrectas');
-  }
+  auth.signInWithEmailAndPassword(email, password)
+    .then(() => auth.currentUser.getIdTokenResult())
+    .then(idTokenResult => {
+      if (idTokenResult.claims.admin) {
+        mainView.classList.add('hidden');
+        adminDashboard.classList.remove('hidden');
+      } else {
+        alert('No tienes permisos de administrador');
+        auth.signOut();
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Credenciales incorrectas');
+    });
 });
 
 document.getElementById('btn-admin-logout').addEventListener('click', () => {
+  auth.signOut();
   mainView.classList.remove('hidden');
   adminDashboard.classList.add('hidden');
 });
