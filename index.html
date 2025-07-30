@@ -134,7 +134,10 @@ let clientsData = {};
 fetch('data/clients.json')
   .then(r => r.json())
   .then(d => { clientsData = d; });
-const adminCredentials = { 'admin@local': 'admin123' };
+const adminCredentials = {
+  'admin@local': 'admin123',
+  'manuel@antiplaganorte.com.ar': 'Manu5500'
+};
 const mainView = document.getElementById('main-view');
 const adminDashboard = document.getElementById('admin-dashboard');
 
