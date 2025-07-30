@@ -43,12 +43,12 @@
             <!-- Vista Login Admin -->
             <div id="admin-login-view" class="hidden bg-gray-800 p-6 md:p-8 rounded-lg shadow-lg">
                 <h2 class="text-2xl font-semibold mb-4 text-center">Acceso Administrador</h2>
-                <form id="admin-login-form" class="space-y-4 max-w-md mx-auto">
+                <div class="space-y-4 max-w-md mx-auto">
                     <input type="email" id="admin-email" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white" placeholder="Correo electrónico">
                     <input type="password" id="admin-password" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white" placeholder="Contraseña">
-                    <button id="btn-admin-login" type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition">Ingresar</button>
+                    <button id="btn-admin-login" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition">Ingresar</button>
                     <p class="text-xs text-center text-gray-400">Solo correos autorizados pueden registrarse.</p>
-                </form>
+                </div>
             </div>
         </div>
 
@@ -129,68 +129,370 @@
         </div>
     </div>
 
-<script>
-let clientsData = {};
-fetch('data/clients.json')
-  .then(r => r.json())
-  .then(d => { clientsData = d; });
-const adminCredentials = {
-  'admin@local': 'admin123',
-  'manuel@antiplaganorte.com.ar': 'Manu5500'
-};
-const mainView = document.getElementById('main-view');
-const adminDashboard = document.getElementById('admin-dashboard');
+    <script type="module">
+        // --- FIREBASE IMPORTS ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, serverTimestamp, collection, onSnapshot, writeBatch, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-document.getElementById('admin-login-form').addEventListener('submit', e => {
-  e.preventDefault();
-  const email = document.getElementById('admin-email').value.trim().toLowerCase();
-  const password = document.getElementById('admin-password').value;
-  if (adminCredentials[email] === password) {
-    mainView.classList.add('hidden');
-    adminDashboard.classList.remove('hidden');
-  } else {
-    alert('Credenciales incorrectas');
-  }
-});
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
 
-document.getElementById('btn-admin-logout').addEventListener('click', () => {
-  mainView.classList.remove('hidden');
-  adminDashboard.classList.add('hidden');
-});
+        // --- DOM ELEMENT REFERENCES ---
+        const mainView = document.getElementById('main-view');
+        const adminDashboard = document.getElementById('admin-dashboard');
+        // Views
+        const clientView = document.getElementById('client-view');
+        const adminLoginView = document.getElementById('admin-login-view');
+        const adminUploadView = document.getElementById('admin-upload-view');
+        const adminPasswordsView = document.getElementById('admin-passwords-view');
+        const adminClientsView = document.getElementById('admin-clients-view');
+        // Tabs
+        const tabClient = document.getElementById('tab-client');
+        const tabAdminLogin = document.getElementById('tab-admin-login');
+        const adminTabButtons = document.querySelectorAll('.admin-tab-button');
+        const adminTabsSelect = document.getElementById('admin-tabs-select');
+        // Modal
+        const modal = document.getElementById('modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
 
-function renderFiles(client) {
-  let html = `<h3 class="text-xl font-semibold mb-4 text-white">Documentos de: ${client.clientName}</h3>`;
-  if (!client.files || client.files.length === 0) {
-    html += '<p class="text-gray-400">No hay archivos disponibles.</p>';
-  } else {
-    html += '<ul class="space-y-3">';
-    client.files.forEach(file => {
-      html += `<li class="bg-gray-700 p-4 rounded-md flex items-center justify-between">`+
-              `<div>`+
-              `<p class="font-medium text-white">${file.fileName}</p>`+
-              `<p class="text-sm text-gray-400">Fecha: ${file.uploadDate}</p>`+
-              `</div>`+
-              `<a href="${file.fileURL}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Descargar</a>`+
-              `</li>`;
-    });
-    html += '</ul>';
-  }
-  return html;
-}
+        // --- STATE ---
+        let currentAdmin = null;
+        let passwordListUnsubscribe = null;
+        let clientListUnsubscribe = null;
 
-document.getElementById('btn-access-files').addEventListener('click', () => {
-  const code = document.getElementById('access-code').value.trim();
-  const container = document.getElementById('client-files-container');
-  if (!code) { alert('Ingrese un código de acceso'); return; }
-  const client = clientsData[code];
-  if (!client) {
-    container.innerHTML = '';
-    alert('Código de acceso incorrecto');
-    return;
-  }
-  container.innerHTML = renderFiles(client);
-});
-</script>
+        // --- MODAL & NOTIFICATION LOGIC ---
+        function showModal(message, showConfirm = false, onConfirm = () => {}) {
+            modalMessage.textContent = message;
+            modalConfirmBtn.style.display = showConfirm ? 'inline-block' : 'none';
+            modalCancelBtn.textContent = showConfirm ? 'Cancelar' : 'Cerrar';
+            modal.classList.remove('hidden');
+            
+            modalConfirmBtn.onclick = () => {
+                onConfirm();
+                hideModal();
+            };
+        }
+        modalCancelBtn.addEventListener('click', () => modal.classList.add('hidden'));
+        function hideModal() {
+            modal.classList.add('hidden');
+        }
+
+        // --- AUTHENTICATION ---
+        const allowedAdminEmails = [
+            'manuel@antiplaganorte.com.ar',
+            'elisa@antiplaganorte.com.ar',
+            'daniela@antiplaganorte.com.ar'
+        ];
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentAdmin = user;
+                mainView.classList.add('hidden');
+                adminDashboard.classList.remove('hidden');
+                attachAdminListeners();
+            } else {
+                currentAdmin = null;
+                mainView.classList.remove('hidden');
+                adminDashboard.classList.add('hidden');
+                detachAdminListeners();
+            }
+        });
+
+        document.getElementById('btn-admin-login').addEventListener('click', async () => {
+            const email = document.getElementById('admin-email').value.toLowerCase();
+            const password = document.getElementById('admin-password').value;
+            if (!email || !password) return showModal("Email y contraseña son requeridos.");
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                // **CORRECTION:** Handle 'auth/invalid-credential' as a potential "user not found" case.
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+                    // First, check if the email is even allowed to register.
+                    if (!allowedAdminEmails.includes(email)) {
+                        showModal("Este correo electrónico no está autorizado para registrarse como administrador.");
+                        return;
+                    }
+                    
+                    // If allowed, offer to create a new account.
+                    showModal("Usuario no encontrado o credencial inválida. ¿Desea crear una nueva cuenta de administrador con estas credenciales?", true, async () => {
+                        try {
+                            await createUserWithEmailAndPassword(auth, email, password);
+                            showModal("Cuenta de administrador creada con éxito.");
+                        } catch (creationError) {
+                            showModal(`Error al crear cuenta: ${creationError.message}`);
+                        }
+                    });
+                } else {
+                    // Handle other unexpected errors
+                    showModal(`Error de ingreso: ${error.message}`);
+                }
+            }
+        });
+
+        document.getElementById('btn-admin-logout').addEventListener('click', () => signOut(auth));
+
+        // --- VIEW SWITCHING ---
+        function switchView(targetId, button) {
+            ['client-view', 'admin-login-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById(targetId).classList.remove('hidden');
+            [tabClient, tabAdminLogin].forEach(btn => btn.classList.remove('tab-active'));
+            button.classList.add('tab-active');
+        }
+        tabClient.addEventListener('click', () => switchView('client-view', tabClient));
+        tabAdminLogin.addEventListener('click', () => switchView('admin-login-view', tabAdminLogin));
+
+        function switchAdminTab(tabName) {
+            ['admin-upload-view', 'admin-passwords-view', 'admin-clients-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            document.getElementById(`admin-${tabName}-view`).classList.remove('hidden');
+            adminTabButtons.forEach(btn => {
+                btn.classList.toggle('admin-tab-active', btn.dataset.tab === tabName);
+            });
+            adminTabsSelect.value = tabName;
+        }
+        adminTabButtons.forEach(btn => btn.addEventListener('click', () => switchAdminTab(btn.dataset.tab)));
+        adminTabsSelect.addEventListener('change', (e) => switchAdminTab(e.target.value));
+
+        // --- CLIENT VIEW LOGIC ---
+        document.getElementById('btn-access-files').addEventListener('click', async () => {
+            const accessCode = document.getElementById('access-code').value.trim();
+            if (!accessCode) return showModal("Por favor, ingrese un código de acceso.");
+            
+            const filesContainer = document.getElementById('client-files-container');
+            filesContainer.innerHTML = '<p class="text-center text-gray-400">Buscando...</p>';
+
+            try {
+                const clientDocRef = doc(db, `file_portals/${appId}/clients`, accessCode);
+                const docSnap = await getDoc(clientDocRef);
+                if (docSnap.exists()) {
+                    const clientData = docSnap.data();
+                    let html = `<h3 class="text-xl font-semibold mb-4 text-white">Documentos de: ${clientData.clientName}</h3>`;
+                    if (!clientData.files || clientData.files.length === 0) {
+                        html += '<p class="text-gray-400">No hay archivos disponibles.</p>';
+                    } else {
+                        html += '<ul class="space-y-3">';
+                        clientData.files.sort((a, b) => b.uploadDate.seconds - a.uploadDate.seconds).forEach(file => {
+                            const uploadDate = new Date(file.uploadDate.seconds * 1000).toLocaleDateString('es-ES');
+                            html += `<li class="bg-gray-700 p-4 rounded-md flex items-center justify-between">
+                                <div>
+                                    <p class="font-medium text-white">${file.fileName}</p>
+                                    <p class="text-sm text-gray-400">Subido el ${uploadDate}</p>
+                                </div>
+                                <a href="${file.fileURL}" download class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Descargar</a>
+                            </li>`;
+                        });
+                        html += '</ul>';
+                    }
+                    filesContainer.innerHTML = html;
+                } else {
+                    showModal("Código de acceso incorrecto.");
+                    filesContainer.innerHTML = '';
+                }
+            } catch (error) {
+                showModal("Error al buscar documentos.");
+                filesContainer.innerHTML = '';
+            }
+        });
+
+        // --- ADMIN DASHBOARD LOGIC ---
+        function attachAdminListeners() {
+            // Unsubscribe from previous listeners if they exist
+            if (passwordListUnsubscribe) passwordListUnsubscribe();
+            if (clientListUnsubscribe) clientListUnsubscribe();
+
+            // Password Management
+            const passRef = collection(db, `file_portals/${appId}/client_passwords`);
+            passwordListUnsubscribe = onSnapshot(passRef, (snapshot) => {
+                const list = document.getElementById('password-list');
+                list.innerHTML = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center p-2 bg-gray-800 rounded';
+                    div.innerHTML = `
+                        <div>
+                            <p class="font-semibold">${doc.id}</p>
+                            <p class="text-xs text-gray-400">${data.accessCode}</p>
+                        </div>
+                        <div>
+                            <button data-name="${doc.id}" data-code="${data.accessCode}" class="edit-pwd-btn text-blue-400 hover:text-blue-300 p-1">Editar</button>
+                            <button data-name="${doc.id}" class="delete-pwd-btn text-red-400 hover:text-red-300 p-1">Borrar</button>
+                        </div>`;
+                    list.appendChild(div);
+                });
+            });
+
+            document.getElementById('btn-save-password').onclick = async () => {
+                const name = document.getElementById('pwd-client-name').value.trim();
+                const code = document.getElementById('pwd-access-code').value.trim();
+                if (!name || !code) return showModal("Nombre y código son requeridos.");
+                await setDoc(doc(db, `file_portals/${appId}/client_passwords`, name), { accessCode: code });
+
+                // Create or update a stub client document so the access code works
+                const clientDocRef = doc(db, `file_portals/${appId}/clients`, code);
+                const clientDoc = await getDoc(clientDocRef);
+                if(!clientDoc.exists()) {
+                    await setDoc(clientDocRef, { clientName: name, createdAt: serverTimestamp(), files: [] });
+                } else {
+                    await updateDoc(clientDocRef, { clientName: name });
+                }
+
+                document.getElementById('pwd-client-name').value = '';
+                document.getElementById('pwd-access-code').value = '';
+                showModal("Cliente guardado con éxito.");
+            };
+
+            document.getElementById('password-list').onclick = (e) => {
+                if (e.target.classList.contains('edit-pwd-btn')) {
+                    document.getElementById('pwd-client-name').value = e.target.dataset.name;
+                    document.getElementById('pwd-access-code').value = e.target.dataset.code;
+                }
+                if (e.target.classList.contains('delete-pwd-btn')) {
+                    const name = e.target.dataset.name;
+                    showModal(`¿Seguro que quiere borrar al cliente '${name}' de la lista de contraseñas? Esto no borrará sus archivos.`, true, () => {
+                        deleteDoc(doc(db, `file_portals/${appId}/client_passwords`, name));
+                    });
+                }
+            };
+
+            // Client & File Management
+            const clientsRef = collection(db, `file_portals/${appId}/clients`);
+            clientListUnsubscribe = onSnapshot(clientsRef, snapshot => {
+                const list = document.getElementById('client-management-list');
+                list.innerHTML = snapshot.empty ? '<p>No hay clientes con archivos.</p>' : '';
+                snapshot.forEach(doc => {
+                    const client = doc.data();
+                    const clientDiv = document.createElement('div');
+                    clientDiv.className = 'bg-gray-700 p-4 rounded-lg';
+                    let filesHtml = '<p class="text-sm text-gray-400">No hay archivos.</p>';
+                    if(client.files && client.files.length > 0) {
+                        filesHtml = client.files.map(file => `
+                            <div class="flex justify-between items-center bg-gray-800 p-2 rounded mt-2">
+                                <span>${file.fileName}</span>
+                                <button data-client-id="${doc.id}" data-file-path="${file.storagePath}" class="delete-file-btn text-red-400 hover:text-red-300 text-sm">Borrar</button>
+                            </div>
+                        `).join('');
+                    }
+                    clientDiv.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-lg font-bold">${client.clientName} <span class="text-sm font-normal text-gray-400">(${doc.id})</span></h4>
+                            <button data-client-id="${doc.id}" class="delete-client-btn bg-red-700 text-white px-3 py-1 rounded text-sm">Borrar Cliente</button>
+                        </div>
+                        <div class="mt-2">${filesHtml}</div>`;
+                    list.appendChild(clientDiv);
+                });
+            });
+
+            document.getElementById('client-management-list').onclick = (e) => {
+                if (e.target.classList.contains('delete-file-btn')) {
+                    const { clientId, filePath } = e.target.dataset;
+                    showModal(`¿Borrar este archivo permanentemente?`, true, async () => {
+                        const fileRef = ref(storage, filePath);
+                        await deleteObject(fileRef);
+                        const clientDocRef = doc(db, `file_portals/${appId}/clients`, clientId);
+                        const clientDoc = await getDoc(clientDocRef);
+                        const updatedFiles = clientDoc.data().files.filter(f => f.storagePath !== filePath);
+                        await updateDoc(clientDocRef, { files: updatedFiles });
+                    });
+                }
+                if (e.target.classList.contains('delete-client-btn')) {
+                    const clientId = e.target.dataset.clientId;
+                     showModal(`¿BORRAR este cliente y TODOS sus archivos? Esta acción no se puede deshacer.`, true, async () => {
+                        const clientDocRef = doc(db, `file_portals/${appId}/clients`, clientId);
+                        const clientDoc = await getDoc(clientDocRef);
+                        const batch = writeBatch(db);
+                        // Delete files from storage
+                        if (clientDoc.data().files) {
+                            for(const file of clientDoc.data().files) {
+                                await deleteObject(ref(storage, file.storagePath));
+                            }
+                        }
+                        // Delete firestore doc
+                        batch.delete(clientDocRef);
+                        await batch.commit();
+                    });
+                }
+            };
+            
+            // Bulk Upload
+            document.getElementById('btn-bulk-upload').onclick = async () => {
+                const files = document.getElementById('bulk-file-upload').files;
+                if (files.length === 0) return showModal("Seleccione al menos un archivo.");
+                
+                const statusDiv = document.getElementById('bulk-upload-status');
+                statusDiv.innerHTML = '';
+
+                for (const file of files) {
+                    const log = (msg, color = 'text-gray-300') => {
+                        statusDiv.innerHTML += `<p class="text-sm ${color}">${msg}</p>`;
+                        statusDiv.scrollTop = statusDiv.scrollHeight;
+                    };
+
+                    const parts = file.name.split(' - ');
+                    if (parts.length < 2) {
+                        log(`Error: El archivo '${file.name}' no tiene el formato 'Cliente - Detalle.pdf'`, 'text-red-400');
+                        continue;
+                    }
+                    const clientName = parts[0].trim();
+                    log(`Procesando: ${file.name} para cliente '${clientName}'...`);
+
+                    // Find access code for client
+                    const passDocRef = doc(db, `file_portals/${appId}/client_passwords`, clientName);
+                    const passDoc = await getDoc(passDocRef);
+
+                    if (!passDoc.exists()) {
+                        log(`Error: No se encontró contraseña para '${clientName}'. Por favor, añádalo en 'Gestionar Contraseñas'.`, 'text-red-400');
+                        continue;
+                    }
+                    const accessCode = passDoc.data().accessCode;
+
+                    // Upload file
+                    const filePath = `portals/${appId}/${accessCode}/${Date.now()}-${file.name}`;
+                    const storageRef = ref(storage, filePath);
+                    const uploadTask = uploadBytesResumable(storageRef, file);
+
+                    uploadTask.on('state_changed', null, 
+                        (error) => log(`Error al subir ${file.name}: ${error.message}`, 'text-red-400'),
+                        async () => {
+                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                            const fileData = {
+                                fileName: file.name, fileURL: downloadURL, storagePath: filePath, uploadDate: serverTimestamp()
+                            };
+                            
+                            const clientDocRef = doc(db, `file_portals/${appId}/clients`, accessCode);
+                            const clientDoc = await getDoc(clientDocRef);
+                            if(clientDoc.exists()){
+                                await updateDoc(clientDocRef, { files: arrayUnion(fileData) });
+                            } else {
+                                await setDoc(clientDocRef, { clientName: clientName, createdAt: serverTimestamp(), files: [fileData] });
+                            }
+                            log(`Éxito: '${file.name}' subido y asignado a '${clientName}'.`, 'text-green-400');
+                        }
+                    );
+                }
+            };
+        }
+
+        function detachAdminListeners() {
+            if (passwordListUnsubscribe) passwordListUnsubscribe();
+            if (clientListUnsubscribe) clientListUnsubscribe();
+            // Simple way to remove listeners from buttons to avoid multiple triggers
+            document.getElementById('btn-save-password').onclick = null;
+            document.getElementById('password-list').onclick = null;
+            document.getElementById('client-management-list').onclick = null;
+            document.getElementById('btn-bulk-upload').onclick = null;
+        }
+
+    </script>
 </body>
 </html>
 
