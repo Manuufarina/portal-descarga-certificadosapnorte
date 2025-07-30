@@ -6,6 +6,17 @@
     <title>Portal de Documentos v2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID"
+        };
+        firebase.initializeApp(firebaseConfig);
+        var db = firebase.firestore();
+    </script>
     <style>
         body { font-family: 'Inter', sans-serif; }
         .tab-active { border-bottom-color: #3b82f6; color: #3b82f6; font-weight: 600; }
@@ -131,15 +142,83 @@
 
 <script>
 let clientsData = {};
-fetch('data/clients.json')
-  .then(r => r.json())
-  .then(d => { clientsData = d; });
+
+function loadClients() {
+  db.collection('clients').get().then(snap => {
+    snap.forEach(doc => {
+      clientsData[doc.id] = doc.data();
+    });
+    renderPasswordList();
+  }).catch(err => {
+    console.error('Error loading clients', err);
+  });
+}
+
+function renderPasswordList() {
+  const list = document.getElementById('password-list');
+  if (!list) return;
+  list.innerHTML = '';
+  Object.entries(clientsData).forEach(([code, client]) => {
+    const div = document.createElement('div');
+    div.className = 'bg-gray-700 p-2 rounded mb-2';
+    div.textContent = `${client.clientName} - ${code}`;
+    list.appendChild(div);
+  });
+}
 const adminCredentials = {
   'admin@local': 'admin123',
   'manuel@antiplaganorte.com.ar': 'Manu5500'
 };
 const mainView = document.getElementById('main-view');
 const adminDashboard = document.getElementById('admin-dashboard');
+const clientView = document.getElementById('client-view');
+const adminLoginView = document.getElementById('admin-login-view');
+const tabClient = document.getElementById('tab-client');
+const tabAdminLogin = document.getElementById('tab-admin-login');
+const adminTabButtons = document.querySelectorAll('.admin-tab-button');
+const adminTabsSelect = document.getElementById('admin-tabs-select');
+const adminUploadView = document.getElementById('admin-upload-view');
+const adminPasswordsView = document.getElementById('admin-passwords-view');
+const adminClientsView = document.getElementById('admin-clients-view');
+
+function showMainTab(tab) {
+  if (tab === 'client') {
+    tabClient.classList.add('tab-active');
+    tabAdminLogin.classList.remove('tab-active');
+    clientView.classList.remove('hidden');
+    adminLoginView.classList.add('hidden');
+  } else {
+    tabAdminLogin.classList.add('tab-active');
+    tabClient.classList.remove('tab-active');
+    adminLoginView.classList.remove('hidden');
+    clientView.classList.add('hidden');
+  }
+}
+
+tabClient.addEventListener('click', () => showMainTab('client'));
+tabAdminLogin.addEventListener('click', () => showMainTab('admin'));
+
+function showAdminTab(tab) {
+  adminUploadView.classList.add('hidden');
+  adminPasswordsView.classList.add('hidden');
+  adminClientsView.classList.add('hidden');
+  adminTabButtons.forEach(btn => {
+    if (btn.getAttribute('data-tab') === tab) {
+      btn.classList.add('admin-tab-active');
+    } else {
+      btn.classList.remove('admin-tab-active');
+    }
+  });
+  adminTabsSelect.value = tab;
+  if (tab === 'upload') adminUploadView.classList.remove('hidden');
+  if (tab === 'passwords') adminPasswordsView.classList.remove('hidden');
+  if (tab === 'clients') adminClientsView.classList.remove('hidden');
+}
+
+adminTabButtons.forEach(btn => btn.addEventListener('click', () => {
+  showAdminTab(btn.getAttribute('data-tab'));
+}));
+adminTabsSelect.addEventListener('change', () => showAdminTab(adminTabsSelect.value));
 
 document.getElementById('admin-login-form').addEventListener('submit', e => {
   e.preventDefault();
@@ -158,6 +237,25 @@ document.getElementById('btn-admin-logout').addEventListener('click', () => {
   adminDashboard.classList.add('hidden');
 });
 
+function saveClient() {
+  const name = document.getElementById('pwd-client-name').value.trim();
+  const code = document.getElementById('pwd-access-code').value.trim();
+  if (!name || !code) { alert('Complete nombre y código'); return; }
+  const files = clientsData[code]?.files || [];
+  db.collection('clients').doc(code).set({ clientName: name, files })
+    .then(() => {
+      clientsData[code] = { clientName: name, files };
+      renderPasswordList();
+      alert('Cliente guardado');
+    })
+    .catch(err => {
+      console.error('Error saving client', err);
+      alert('Error al guardar cliente');
+    });
+}
+
+document.getElementById('btn-save-password').addEventListener('click', saveClient);
+
 function renderFiles(client) {
   let html = `<h3 class="text-xl font-semibold mb-4 text-white">Documentos de: ${client.clientName}</h3>`;
   if (!client.files || client.files.length === 0) {
@@ -170,7 +268,7 @@ function renderFiles(client) {
               `<p class="font-medium text-white">${file.fileName}</p>`+
               `<p class="text-sm text-gray-400">Fecha: ${file.uploadDate}</p>`+
               `</div>`+
-              `<a href="${file.fileURL}" download class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Descargar</a>`+
+              `<a href="${file.fileURL}" target="_blank" download rel="noopener" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Descargar</a>`+
               `</li>`;
     });
     html += '</ul>';
@@ -190,6 +288,9 @@ document.getElementById('btn-access-files').addEventListener('click', () => {
   }
   container.innerHTML = renderFiles(client);
 });
+
+// Inicializar datos
+loadClients();
 </script>
 </body>
 </html>
