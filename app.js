@@ -207,7 +207,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // CREATE/UPDATE client
+    // Bulk CREATE from CSV
+    const csvFileInput = document.getElementById('csv-file-upload');
+    const bulkClientUploadBtn = document.getElementById('btn-bulk-client-upload');
+    const bulkClientUploadStatus = document.getElementById('bulk-client-upload-status');
+
+    bulkClientUploadBtn.addEventListener('click', () => {
+        const file = csvFileInput.files[0];
+        if (!file) {
+            alert('Por favor, seleccione un archivo CSV.');
+            return;
+        }
+
+        bulkClientUploadBtn.disabled = true;
+        bulkClientUploadStatus.textContent = 'Procesando archivo...';
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async (results) => {
+                let successCount = 0;
+                let errorCount = 0;
+
+                for (const row of results.data) {
+                    const clientName = row.nombre_cliente;
+                    const accessCode = row.codigo_acceso;
+
+                    if (clientName && accessCode) {
+                        try {
+                            await db.collection('clients').add({
+                                clientName: clientName.trim(),
+                                accessCode: accessCode.trim().toUpperCase(),
+                                files: []
+                            });
+                            successCount++;
+                        } catch (e) {
+                            console.error("Error adding client from CSV:", e);
+                            errorCount++;
+                        }
+                    } else {
+                        errorCount++;
+                    }
+                }
+
+                let statusMessage = `Carga completada. Clientes añadidos: ${successCount}.`;
+                if (errorCount > 0) {
+                    statusMessage += ` Filas con errores: ${errorCount}.`;
+                }
+                bulkClientUploadStatus.textContent = statusMessage;
+
+                csvFileInput.value = ''; // Reset input
+                bulkClientUploadBtn.disabled = false;
+                loadClientsForPasswordManagement(); // Refresh the list
+            },
+            error: (err) => {
+                bulkClientUploadStatus.textContent = `Error al parsear el CSV: ${err.message}`;
+                bulkClientUploadBtn.disabled = false;
+            }
+        });
+    });
+
+    // CREATE/UPDATE client (individual)
     savePasswordBtn.addEventListener('click', async () => {
         const clientName = clientNameInput.value.trim();
         const accessCode = accessCodeInput.value.trim().toUpperCase();

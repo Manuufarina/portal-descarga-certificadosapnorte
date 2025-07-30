@@ -44,8 +44,8 @@
             <div id="admin-login-view" class="hidden bg-gray-800 p-6 md:p-8 rounded-lg shadow-lg">
                 <h2 class="text-2xl font-semibold mb-4 text-center">Acceso Administrador</h2>
                 <form id="admin-login-form" class="space-y-4 max-w-md mx-auto">
-                    <input type="email" id="admin-email" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white" placeholder="Correo electrónico">
-                    <input type="password" id="admin-password" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white" placeholder="Contraseña">
+                    <input type="email" id="admin-email" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white" placeholder="Correo electrónico" autocomplete="email">
+                    <input type="password" id="admin-password" class="w-full bg-gray-700 border border-gray-600 rounded-md p-3 text-white" placeholder="Contraseña" autocomplete="current-password">
                     <button id="btn-admin-login" type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition">Ingresar</button>
                     <p class="text-xs text-center text-gray-400">Solo correos autorizados pueden registrarse.</p>
                 </form>
@@ -95,10 +95,18 @@
                     <h3 class="text-xl font-semibold mb-4">Gestionar Contraseñas de Clientes</h3>
                     <div class="grid md:grid-cols-2 gap-6">
                         <div>
-                            <h4 class="font-medium mb-2">Añadir/Editar Cliente</h4>
+                            <h4 class="font-medium mb-2">Carga Masiva de Clientes (CSV)</h4>
+                            <div class="space-y-3 bg-gray-900 p-4 rounded mb-6">
+                                <p class="text-xs text-gray-400">El CSV debe tener las columnas: <code class="bg-gray-700 p-1 rounded">nombre_cliente,codigo_acceso</code>.</p>
+                                <input type="file" id="csv-file-upload" accept=".csv" class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-500 file:text-white hover:file:bg-purple-600">
+                                <button id="btn-bulk-client-upload" class="w-full bg-purple-600 hover:bg-purple-700 p-2 rounded">Cargar Clientes desde CSV</button>
+                                <div id="bulk-client-upload-status" class="text-sm mt-2"></div>
+                            </div>
+
+                            <h4 class="font-medium mb-2">Añadir/Editar Cliente Individual</h4>
                             <div class="space-y-3 bg-gray-900 p-4 rounded">
-                                <input type="text" id="pwd-client-name" placeholder="Nombre del Cliente" class="w-full bg-gray-700 p-2 rounded">
-                                <input type="text" id="pwd-access-code" placeholder="Código de Acceso (Contraseña)" class="w-full bg-gray-700 p-2 rounded">
+                                <input type="text" id="pwd-client-name" placeholder="Nombre del Cliente" class="w-full bg-gray-700 p-2 rounded" autocomplete="off">
+                                <input type="text" id="pwd-access-code" placeholder="Código de Acceso (Contraseña)" class="w-full bg-gray-700 p-2 rounded" autocomplete="off">
                                 <button id="btn-save-password" class="w-full bg-blue-600 hover:bg-blue-700 p-2 rounded">Guardar Cliente</button>
                             </div>
                         </div>
@@ -128,6 +136,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
