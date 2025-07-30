@@ -129,68 +129,15 @@
         </div>
     </div>
 
-<script>
-let clientsData = {};
-fetch('data/clients.json')
-  .then(r => r.json())
-  .then(d => { clientsData = d; });
-const adminCredentials = {
-  'admin@local': 'admin123',
-  'manuel@antiplaganorte.com.ar': 'Manu5500'
-};
-const mainView = document.getElementById('main-view');
-const adminDashboard = document.getElementById('admin-dashboard');
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
-document.getElementById('admin-login-form').addEventListener('submit', e => {
-  e.preventDefault();
-  const email = document.getElementById('admin-email').value.trim().toLowerCase();
-  const password = document.getElementById('admin-password').value;
-  if (adminCredentials[email] === password) {
-    mainView.classList.add('hidden');
-    adminDashboard.classList.remove('hidden');
-  } else {
-    alert('Credenciales incorrectas');
-  }
-});
-
-document.getElementById('btn-admin-logout').addEventListener('click', () => {
-  mainView.classList.remove('hidden');
-  adminDashboard.classList.add('hidden');
-});
-
-function renderFiles(client) {
-  let html = `<h3 class="text-xl font-semibold mb-4 text-white">Documentos de: ${client.clientName}</h3>`;
-  if (!client.files || client.files.length === 0) {
-    html += '<p class="text-gray-400">No hay archivos disponibles.</p>';
-  } else {
-    html += '<ul class="space-y-3">';
-    client.files.forEach(file => {
-      html += `<li class="bg-gray-700 p-4 rounded-md flex items-center justify-between">`+
-              `<div>`+
-              `<p class="font-medium text-white">${file.fileName}</p>`+
-              `<p class="text-sm text-gray-400">Fecha: ${file.uploadDate}</p>`+
-              `</div>`+
-              `<a href="${file.fileURL}" download target="_blank" rel="noopener" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">Descargar</a>`+
-              `</li>`;
-    });
-    html += '</ul>';
-  }
-  return html;
-}
-
-document.getElementById('btn-access-files').addEventListener('click', () => {
-  const code = document.getElementById('access-code').value.trim();
-  const container = document.getElementById('client-files-container');
-  if (!code) { alert('Ingrese un código de acceso'); return; }
-  const client = clientsData[code];
-  if (!client) {
-    container.innerHTML = '';
-    alert('Código de acceso incorrecto');
-    return;
-  }
-  container.innerHTML = renderFiles(client);
-});
-</script>
+    <!-- App -->
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
 
