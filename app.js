@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Initialize admin panel data
             loadClientsForPasswordManagement();
             loadClientsForFileManagement();
+            loadClientsForDragAndDrop();
         } else {
             // User is signed out, show main login view
             mainView.classList.remove('hidden');
@@ -259,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 csvFileInput.value = ''; // Reset input
                 bulkClientUploadBtn.disabled = false;
                 loadClientsForPasswordManagement(); // Refresh the list
+                loadClientsForDragAndDrop();
             },
             error: (err) => {
                 bulkClientUploadStatus.textContent = `Error al parsear el CSV: ${err.message}`;
@@ -293,6 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             resetPasswordForm();
             loadClientsForPasswordManagement();
+            loadClientsForDragAndDrop();
         } catch (error) {
             console.error('Error saving client:', error);
             alert('Error al guardar el cliente.');
@@ -313,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await db.collection('clients').doc(clientId).delete();
             alert('Cliente eliminado con éxito.');
             loadClientsForPasswordManagement();
+            loadClientsForDragAndDrop();
         } catch (error) {
             console.error("Error deleting client:", error);
             alert('Error al eliminar el cliente.');
@@ -404,6 +408,79 @@ document.addEventListener('DOMContentLoaded', () => {
         bulkUploadStatus.scrollTop = bulkUploadStatus.scrollHeight; // Auto-scroll
     }
 
+    // Section: Drag-and-drop upload per client
+    const clientUploadFolders = document.getElementById('client-upload-folders');
+
+    async function loadClientsForDragAndDrop() {
+        if (!clientUploadFolders) return;
+        clientUploadFolders.innerHTML = 'Cargando...';
+        try {
+            const snapshot = await db.collection('clients').orderBy('clientName').get();
+            if (snapshot.empty) {
+                clientUploadFolders.innerHTML = '<p class="text-gray-400 col-span-full text-center">No hay clientes registrados.</p>';
+                return;
+            }
+
+            let html = '';
+            snapshot.forEach(doc => {
+                const client = doc.data();
+                html += `
+                    <div class="client-folder border-2 border-dashed border-gray-600 rounded p-4 flex flex-col items-center justify-center text-center" data-client-id="${doc.id}" data-client-name="${client.clientName}">
+                        <div class="text-4xl">📁</div>
+                        <p class="mt-2 text-sm">${client.clientName}</p>
+                    </div>
+                `;
+            });
+            clientUploadFolders.innerHTML = html;
+
+            clientUploadFolders.querySelectorAll('.client-folder').forEach(folder => {
+                folder.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    folder.classList.add('bg-gray-700');
+                });
+                folder.addEventListener('dragleave', () => folder.classList.remove('bg-gray-700'));
+                folder.addEventListener('drop', async (e) => {
+                    e.preventDefault();
+                    folder.classList.remove('bg-gray-700');
+                    const files = e.dataTransfer.files;
+                    const clientId = folder.dataset.clientId;
+                    const clientName = folder.dataset.clientName;
+
+                    for (const file of files) {
+                        if (file.type !== 'application/pdf') {
+                            logStatus(`Archivo omitido (no es PDF): ${file.name}`, 'text-yellow-400');
+                            continue;
+                        }
+                        try {
+                            logStatus(`Subiendo: ${file.name} para ${clientName}...`);
+                            const storageRef = storage.ref(`client_files/${clientId}/${file.name}`);
+                            const uploadTask = await storageRef.put(file);
+                            const downloadURL = await uploadTask.ref.getDownloadURL();
+
+                            const newFileData = {
+                                fileName: file.name,
+                                fileURL: downloadURL,
+                                uploadDate: new Date().toISOString().split('T')[0]
+                            };
+
+                            await db.collection('clients').doc(clientId).update({
+                                files: firebase.firestore.FieldValue.arrayUnion(newFileData)
+                            });
+
+                            logStatus(`Éxito: "${file.name}" subido para ${clientName}.`, 'text-green-400');
+                        } catch (error) {
+                            console.error('Error uploading file:', error);
+                            logStatus(`Error al subir "${file.name}" para ${clientName}.`, 'text-red-400');
+                        }
+                    }
+                    loadClientsForFileManagement();
+                });
+            });
+        } catch (error) {
+            console.error('Error loading clients for drag and drop:', error);
+            clientUploadFolders.innerHTML = '<p class="text-red-400 col-span-full text-center">Error al cargar clientes.</p>';
+        }
+    }
 
     // Section: Manage Clients and Files
     const clientManagementList = document.getElementById('client-management-list');
