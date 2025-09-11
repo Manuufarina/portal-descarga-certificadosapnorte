@@ -22,8 +22,18 @@ document.addEventListener('DOMContentLoaded', () => {
             loadClientsForPasswordManagement();
             loadClientsForFileManagement();
             loadClientsForDragAndDrop();
-            // Focus the password management tab so admins can manage users immediately
-            switchAdminTab('passwords');
+            // On login, ensure both the upload and password tabs are visible by default.
+            // First, reset all tabs to a known state (all hidden)
+            Object.values(adminTabContents).forEach(content => content.classList.add('hidden'));
+            adminTabs.forEach(button => button.classList.remove('admin-tab-active'));
+
+            // Then, show the two required tabs
+            adminTabContents['upload'].classList.remove('hidden');
+            adminTabContents['passwords'].classList.remove('hidden');
+
+            // Finally, set the upload tab button as active and update the mobile dropdown
+            document.querySelector('.admin-tab-button[data-tab="upload"]').classList.add('admin-tab-active');
+            document.getElementById('admin-tabs-select').value = 'upload';
         } else {
             // User is signed out, show main login view
             mainView.classList.remove('hidden');
