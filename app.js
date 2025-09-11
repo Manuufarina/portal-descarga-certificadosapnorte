@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
         passwords: document.getElementById('admin-passwords-view'),
         clients: document.getElementById('admin-clients-view'),
     };
+    const adminTabsSelect = document.getElementById('admin-tabs-select');
 
     function switchAdminTab(tabName) {
         Object.values(adminTabContents).forEach(content => content.classList.add('hidden'));
@@ -50,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         button.addEventListener('click', () => switchAdminTab(button.dataset.tab));
     });
 
-    document.getElementById('admin-tabs-select').addEventListener('change', (e) => {
+    adminTabsSelect.addEventListener('change', (e) => {
         switchAdminTab(e.target.value);
     });
 
@@ -69,7 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadClientsForFileManagement();
             loadClientsForDragAndDrop();
 
-            // Leave the current tab selection unchanged so admins can switch between sections
+            adminTabsSelect.value = 'passwords';
+            switchAdminTab('passwords');
         } else {
             // User is signed out, show main login view
             mainView.classList.remove('hidden');
