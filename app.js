@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadClientsForPasswordManagement();
             loadClientsForFileManagement();
             loadClientsForDragAndDrop();
+            // Focus the password management tab so admins can manage users immediately
+            switchAdminTab('passwords');
         } else {
             // User is signed out, show main login view
             mainView.classList.remove('hidden');
