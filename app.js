@@ -69,9 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
             loadClientsForFileManagement();
             loadClientsForDragAndDrop();
 
-            // Focus the document upload tab so file management is immediately accessible
-            switchAdminTab('upload');
-            document.getElementById('admin-tabs-select').value = 'upload';
+            // Leave the current tab selection unchanged so admins can switch between sections
         } else {
             // User is signed out, show main login view
             mainView.classList.remove('hidden');
