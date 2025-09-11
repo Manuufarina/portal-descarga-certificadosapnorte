@@ -69,9 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
             loadClientsForFileManagement();
             loadClientsForDragAndDrop();
 
-            // Focus the password management tab so admins can manage users immediately
-            switchAdminTab('passwords');
-            document.getElementById('admin-tabs-select').value = 'passwords';
+            // Focus the document upload tab so file management is immediately accessible
+            switchAdminTab('upload');
+            document.getElementById('admin-tabs-select').value = 'upload';
         } else {
             // User is signed out, show main login view
             mainView.classList.remove('hidden');
