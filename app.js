@@ -10,42 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const clientView = document.getElementById('client-view');
     const adminLoginView = document.getElementById('admin-login-view');
 
-    // --- AUTHENTICATION ---
-
-    // Listen for auth state changes
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            // User is signed in, show admin dashboard
-            mainView.classList.add('hidden');
-            adminDashboard.classList.remove('hidden');
-            // Initialize admin panel data
-            loadClientsForPasswordManagement();
-            loadClientsForFileManagement();
-            loadClientsForDragAndDrop();
-        } else {
-            // User is signed out, show main login view
-            mainView.classList.remove('hidden');
-            adminDashboard.classList.add('hidden');
-        }
-    });
-
-    // Admin Login
-    document.getElementById('admin-login-form').addEventListener('submit', e => {
-        e.preventDefault();
-        const email = document.getElementById('admin-email').value.trim();
-        const password = document.getElementById('admin-password').value;
-        auth.signInWithEmailAndPassword(email, password)
-            .catch(error => {
-                console.error("Login failed:", error);
-                alert('Credenciales incorrectas o error de conexión.');
-            });
-    });
-
-    // Admin Logout
-    document.getElementById('btn-admin-logout').addEventListener('click', () => {
-        auth.signOut();
-    });
-
     // --- UI/UX Functions ---
 
     // Tab switching for main view (Client vs Admin)
@@ -88,6 +52,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('admin-tabs-select').addEventListener('change', (e) => {
         switchAdminTab(e.target.value);
+    });
+
+
+    // --- AUTHENTICATION ---
+
+    // Listen for auth state changes
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            // User is signed in, show admin dashboard
+            mainView.classList.add('hidden');
+            adminDashboard.classList.remove('hidden');
+
+            // Initialize admin panel data
+            loadClientsForPasswordManagement();
+            loadClientsForFileManagement();
+            loadClientsForDragAndDrop();
+
+            // Focus the password management tab so admins can manage users immediately
+            switchAdminTab('passwords');
+            document.getElementById('admin-tabs-select').value = 'passwords';
+        } else {
+            // User is signed out, show main login view
+            mainView.classList.remove('hidden');
+            adminDashboard.classList.add('hidden');
+        }
+    });
+
+    // Admin Login
+    document.getElementById('admin-login-form').addEventListener('submit', e => {
+        e.preventDefault();
+        const email = document.getElementById('admin-email').value.trim();
+        const password = document.getElementById('admin-password').value;
+        auth.signInWithEmailAndPassword(email, password)
+            .catch(error => {
+                console.error("Login failed:", error);
+                alert('Credenciales incorrectas o error de conexión.');
+            });
+    });
+
+    // Admin Logout
+    document.getElementById('btn-admin-logout').addEventListener('click', () => {
+        auth.signOut();
     });
 
 
